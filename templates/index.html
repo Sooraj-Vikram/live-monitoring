@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Data with Graphs</title>
+    <title>Predictive Maintenance of Motors</title>
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
-    <!-- Add Firebase SDK -->
     <script type="module">
-        // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-        // Your Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCZdPNeOyjsW9qjKrDLabWSCwFBg-b5NxA",
             authDomain: "predictive-maintenance-ee697.firebaseapp.com",
@@ -23,49 +20,21 @@
             measurementId: "G-B57LTZHVZ4"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        // Arrays to store time-series data
-        let timeData = []; // Timestamps
-        let currentData = []; // Current values
-        let vibrationData = []; // Vibration values
-        let temperatureData = []; // Temperature values
+        let timeData = [], currentData = [], vibrationData = [], temperatureData = [];
 
-        // Function to update graphs
         function updateGraphs() {
-            // Update Current vs Time graph
-            const currentGraph = {
-                x: timeData,
-                y: currentData,
-                type: 'scatter',
-                name: 'Current'
-            };
-            Plotly.newPlot('graph1', [currentGraph], { title: 'Current vs Time' });
-
-            // Update Vibration vs Time graph
-            const vibrationGraph = {
-                x: timeData,
-                y: vibrationData,
-                type: 'scatter',
-                name: 'Vibration'
-            };
-            Plotly.newPlot('graph2', [vibrationGraph], { title: 'Vibration vs Time' });
-
-            // Update Temperature vs Time graph
-            const temperatureGraph = {
-                x: timeData,
-                y: temperatureData,
-                type: 'scatter',
-                name: 'Temperature'
-            };
-            Plotly.newPlot('graph3', [temperatureGraph], { title: 'Temperature vs Time' });
+            Plotly.newPlot('graph1', [{ x: timeData, y: currentData, type: 'scatter', name: 'Current' }], { title: 'Current' });
+            Plotly.newPlot('graph2', [{ x: timeData, y: vibrationData, type: 'scatter', name: 'Vibration' }], { title: 'Vibration' });
+            Plotly.newPlot('graph3', [{ x: timeData, y: temperatureData, type: 'scatter', name: 'Temperature' }], { title: 'Temperature' });
         }
 
-        // Function to update prediction status
-        function updatePredictionStatus(faultValue) {
+        function updatePredictionStatus(faultValue, faultName) {
             const predictionBox = document.getElementById('prediction-box');
+            const faultTypeBox = document.getElementById('fault-type');
+
             if (faultValue === 1) {
                 predictionBox.textContent = "Fault Detected!";
                 predictionBox.style.backgroundColor = "red";
@@ -73,84 +42,82 @@
                 predictionBox.textContent = "No Fault";
                 predictionBox.style.backgroundColor = "green";
             }
+
+            faultTypeBox.textContent = `Fault Type: ${faultName}`;
         }
 
-        // Fetch data from Realtime Database
-        const dbRef = ref(database, '/'); // Fetch data from the root of the database
-        onValue(dbRef, (snapshot) => {
+        onValue(ref(database, '/'), (snapshot) => {
             const data = snapshot.val();
-            console.log("Fetched data:", data); // Check the console to see the fetched data
-
-            if (data && data.Sensor && data.Prediction) {
-                // Get current timestamp
+            if (data && data.Sensor && data.Prediction && data.FaultName) {
                 const timestamp = new Date().toLocaleTimeString();
-
-                // Add new data to the arrays
                 timeData.push(timestamp);
-                currentData.push(data.Sensor.Current || 0); // Default to 0 if undefined
-                vibrationData.push(data.Sensor.Vibration || 0); // Default to 0 if undefined
-                temperatureData.push(data.Sensor.Temperature || 0); // Default to 0 if undefined
-
-                // Keep only the last 10 data points (for better visualization)
+                currentData.push(data.Sensor.Current || 0);
+                vibrationData.push(data.Sensor.Vibration || 0);
+                temperatureData.push(data.Sensor.Temperature || 0);
                 if (timeData.length > 10) {
-                    timeData.shift();
-                    currentData.shift();
-                    vibrationData.shift();
-                    temperatureData.shift();
+                    timeData.shift(); currentData.shift(); vibrationData.shift(); temperatureData.shift();
                 }
-
-                // Update the graphs
                 updateGraphs();
-
-                // Update the prediction status
-                updatePredictionStatus(data.Prediction.Fault);
-            } else {
-                console.error("Sensor or Prediction data is missing in Firebase!");
+                updatePredictionStatus(data.Prediction.Fault, data.FaultName.Name);
             }
-        });
-
-        // Handle the toggle switch
-        const toggleSwitch = document.getElementById('toggle-switch');
-        toggleSwitch.addEventListener('change', function() {
-            const switchState = this.checked ? 'ON' : 'OFF';
-            alert(`Switch is ${switchState}`);
-            // You can add logic here to send the switch state to Firebase or perform other actions
         });
     </script>
     <style>
-        .graph-container {
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
             display: flex;
             flex-wrap: wrap;
             justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            height: 80vh;
         }
         .graph {
-            width: 100%;
-            height: 300px;
-            margin: 10px;
+            width: 30%;
+            height: 250px;
         }
         .prediction-box {
             text-align: center;
-            margin: 20px;
-            padding: 20px;
-            font-size: 24px;
+            padding: 15px;
+            font-size: 20px;
             font-weight: bold;
             color: white;
             border-radius: 10px;
+            width: 200px;
+        }
+        .fault-box {
+            text-align: center;
+            padding: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+            background-color: lightgray;
+            border-radius: 5px;
+            width: 200px;
         }
         .switch {
-            text-align: center;
-            margin: 20px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Firebase Data with Graphs</h1>
-    <div class="graph-container">
+    <h1>Predictive Maintenance</h1>
+    <div class="container">
         <div id="graph1" class="graph"></div>
         <div id="graph2" class="graph"></div>
         <div id="graph3" class="graph"></div>
     </div>
     <div id="prediction-box" class="prediction-box">No Fault</div>
+    <div id="fault-type" class="fault-box">Fault Type: </div>
     <div class="switch">
         <label for="toggle-switch">Toggle Switch:</label>
         <input type="checkbox" id="toggle-switch">
